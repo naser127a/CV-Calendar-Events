@@ -13,6 +13,13 @@ class ActivityLogPolicyTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed();
+    }
+
     public function test_user_with_view_all_permission_can_view_activity_logs(): void
     {
         $role = Role::where('name', 'admin')->firstOrFail();
@@ -21,9 +28,7 @@ class ActivityLogPolicyTest extends TestCase
             ->where('name', ActivityLogPermissionEnum::VIEW_ALL->value)
             ->firstOrFail();
 
-        $user = User::factory()->create([
-            'role_id' => $role->id,
-        ]);
+        $user = User::factory()->withRole($role)->create();
 
         $this->assertTrue(
             $user->can($permission->name)
@@ -40,9 +45,7 @@ class ActivityLogPolicyTest extends TestCase
     {
         $role = Role::where('name', 'user')->firstOrFail();
 
-        $user = User::factory()->create([
-            'role_id' => $role->id,
-        ]);
+        $user = User::factory()->withRole($role)->create();
 
         $this->assertFalse(
             $user->can(

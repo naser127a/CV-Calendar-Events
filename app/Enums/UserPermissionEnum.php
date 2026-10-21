@@ -10,4 +10,5 @@ enum UserPermissionEnum: string
     case DELETE = 'delete_users';
     case ACTIVATE = 'activate_users';
     case DEACTIVATE = 'deactivate_users';
+    case ASSIGN_PRIVILEGED_ROLES = 'assign_privileged_roles';
 }

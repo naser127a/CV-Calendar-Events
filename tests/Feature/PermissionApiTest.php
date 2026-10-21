@@ -11,6 +11,14 @@ use Tests\TestCase;
 class PermissionApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed();
+    }
+
     public function test_authorized_user_can_view_permissions(): void
     {
         $admin = User::where('email', 'admin@admin.com')->firstOrFail();

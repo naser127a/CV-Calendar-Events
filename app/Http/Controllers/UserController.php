@@ -12,6 +12,7 @@ use App\Http\Requests\User\UpdateUserRequest;
 use App\Http\Requests\User\UserFilterRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use App\Services\UserService;
 use Exception;
 use Symfony\Component\HttpFoundation\Response;
@@ -136,7 +137,7 @@ class UserController extends Controller
     public function changeRole(ChangeRoleRequest $request, User $user)
     {
         $this->authorize('update', $user);
-        $this->userService->changeRole($user, $request->roleName);
+        $this->userService->changeRole($user, $request->validated('roleName'));
 
         return ApiResponse::success(
             null,
@@ -148,6 +149,8 @@ class UserController extends Controller
      */
     public function trashed()
     {
+        $this->authorize('viewTrashed', User::class);
+
         $trashedUsers = $this->userService->getTrashedUsersOnly();
 
         return ApiResponse::success(
@@ -161,20 +164,14 @@ class UserController extends Controller
      */
     public function softDelete(int $id)
     {
-        try {
-            $this->userService->softDeleteUser($id);
+        $user = User::query()->findOrFail($id);
+        $this->authorize('delete', $user);
+        $this->userService->softDeleteUser($id);
 
-            return ApiResponse::success(
-                null,
-                'تم نقل المستخدم إلى سلة المهملات بنجاح'
-            );
-        } catch (Exception $e) {
-            return ApiResponse::error(
-                $e->getMessage(),
-                [],
-                500
-            );
-        }
+        return ApiResponse::success(
+            null,
+            'تم نقل المستخدم إلى سلة المهملات بنجاح'
+        );
     }
 
     /**
@@ -182,20 +179,14 @@ class UserController extends Controller
      */
     public function restore(int $id)
     {
-        try {
-            $this->userService->restoreUser($id);
+        $user = User::onlyTrashed()->findOrFail($id);
+        $this->authorize('restore', $user);
+        $this->userService->restoreUser($id);
 
-            return ApiResponse::success(
-                null,
-                'تم استرجاع حساب المستخدم بنجاح'
-            );
-        } catch (Exception $e) {
-            return ApiResponse::error(
-                $e->getMessage(),
-                [],
-                500
-            );
-        }
+        return ApiResponse::success(
+            null,
+            'تم استرجاع حساب المستخدم بنجاح'
+        );
     }
 
     /**
@@ -203,19 +194,13 @@ class UserController extends Controller
      */
     public function forceDelete(int $id)
     {
-        try {
-            $this->userService->forceDeleteUser($id);
+        $user = User::withTrashed()->findOrFail($id);
+        $this->authorize('forceDelete', $user);
+        $this->userService->forceDeleteUser($id);
 
-            return ApiResponse::success(
-                null,
-                'تم حذف المستخدم من النظام نهائياً'
-            );
-        } catch (Exception $e) {
-            return ApiResponse::error(
-                $e->getMessage(),
-                [],
-                500
-            );
-        }
+        return ApiResponse::success(
+            null,
+            'تم حذف المستخدم من النظام نهائياً'
+        );
     }
 }

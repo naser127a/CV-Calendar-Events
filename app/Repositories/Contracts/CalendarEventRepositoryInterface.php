@@ -14,5 +14,5 @@ interface CalendarEventRepositoryInterface extends BaseRepositoryInterface
 
     public function search(CalendarFilterData $filters, User $user): LengthAwarePaginator;
 
-    public function getUpcoming(): Collection;
+    public function getUpcoming(User $user): Collection;
 }

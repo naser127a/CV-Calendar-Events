@@ -17,8 +17,6 @@ class ProfileApiTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed();
-
         $this->user = User::factory()->create();
 
         Sanctum::actingAs($this->user);

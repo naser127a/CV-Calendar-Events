@@ -15,9 +15,14 @@ class PermissionController extends Controller
     public function __construct(
         private PermissionService $permissionService
     ) {}
+
     public function index(Request $request)
     {
         $this->authorize('viewAny', Permission::class);
+        $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
 
         if ($request->filled('name')) {
             $permission = $this->permissionService
@@ -35,7 +40,7 @@ class PermissionController extends Controller
                     (int) $request->input('per_page', 15)
                 )
             ),
-            " Permissions retrieved successfully"
+            ' Permissions retrieved successfully'
         );
     }
 
@@ -47,6 +52,7 @@ class PermissionController extends Controller
             new PermissionResource($permission)
         );
     }
+
     public function store(CreatePermissionRequest $request)
     {
         $this->authorize('create', Permission::class);
@@ -57,7 +63,7 @@ class PermissionController extends Controller
 
         return ApiResponse::success(
             new PermissionResource($permission),
-            "Permission created successfully.",
+            'Permission created successfully.',
             201
         );
     }
@@ -76,7 +82,7 @@ class PermissionController extends Controller
 
         return ApiResponse::success(
             new PermissionResource($updatedPermission),
-            "Permission updated successfully.",
+            'Permission updated successfully.',
             200
         );
     }

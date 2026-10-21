@@ -24,7 +24,7 @@ class SyncRolePermissionsRequest extends FormRequest
     {
         return [
             'permissions' => 'required|array',
-            'permissions.*' => 'string|exists:permissions,id'
+            'permissions.*' => 'integer|distinct|exists:permissions,id',
         ];
     }
 }

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,14 +18,11 @@ class RegistrationApiTest extends TestCase
 
     public function test_user_can_register(): void
     {
-        $role = Role::where('name', 'user')->firstOrFail();
-
         $response = $this->postJson('/api/v1/register', [
             'name' => 'New User',
             'email' => 'newuser@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'role_id' => $role->id,
         ]);
 
         $response->assertSuccessful();

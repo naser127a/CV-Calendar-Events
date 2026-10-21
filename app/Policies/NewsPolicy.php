@@ -10,16 +10,14 @@ class NewsPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can(
-            NewsPermissionEnum::VIEW_ALL->value
-        );
+        return $user->can(NewsPermissionEnum::VIEW->value)
+            || $user->can(NewsPermissionEnum::VIEW_ALL->value);
     }
 
     public function view(User $user, News $news): bool
     {
-        return $user->can(
-            NewsPermissionEnum::VIEW->value
-        );
+        return $user->can(NewsPermissionEnum::VIEW->value)
+            || $user->can(NewsPermissionEnum::VIEW_ALL->value);
     }
 
     public function create(User $user): bool

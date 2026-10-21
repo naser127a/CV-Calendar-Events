@@ -2,16 +2,17 @@
 
 namespace Database\Seeders;
 
-use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
     public function run(): void
     {
+        $adminRole = Role::findByName('admin', 'web');
+        $supervisorRole = Role::findByName('supervisor', 'web');
+        $userRole = Role::findByName('user', 'web');
 
         $user = User::create([
             'name' => 'مدير النظام',
@@ -20,7 +21,7 @@ class UserSeeder extends Seeder
             'status' => true,
         ]);
 
-        $user->assignRole('admin');
+        $user->assignRole($adminRole);
         $supervisor = User::create([
             'name' => 'مشرف الموقع',
             'email' => 'super@admin.com',
@@ -28,7 +29,7 @@ class UserSeeder extends Seeder
             'status' => true,
         ]);
 
-        $supervisor->assignRole('supervisor');
+        $supervisor->assignRole($supervisorRole);
         $normalUser = User::create([
             'name' => 'مستخدم تجريبي',
             'email' => 'user@user.com',
@@ -36,6 +37,6 @@ class UserSeeder extends Seeder
             'status' => true,
         ]);
 
-        $normalUser->assignRole('user');
+        $normalUser->assignRole($userRole);
     }
 }

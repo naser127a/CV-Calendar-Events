@@ -12,7 +12,6 @@ use App\Http\Requests\Calendar\UpdateCalendarRequest;
 use App\Http\Resources\CalendarEventResource;
 use App\Models\CalendarEvent;
 use App\Services\CalendarService;
-use Illuminate\Support\Facades\Auth;
 
 class CalendarController extends Controller
 {
@@ -23,7 +22,7 @@ class CalendarController extends Controller
     public function store(StoreCalendarRequest $request)
     {
         $this->authorize('create', CalendarEvent::class);
-        $userId = Auth::id();
+        $userId = $request->user()->id;
         $data = CreateCalendarEventData::fromRequest($request);
         $calendar = $this->calendar->create($data, $userId);
 
@@ -80,11 +79,7 @@ class CalendarController extends Controller
         $this->authorize('viewAny', CalendarEvent::class);
 
         $dto = CalendarFilterData::fromRequest($request);
-        $currentUser = Auth::user();
-
-        $calendar = $this->calendar->search($dto, $currentUser);
-
-
+        $calendar = $this->calendar->search($dto, $request->user());
 
         return ApiResponse::paginated(
             CalendarEventResource::collection(

@@ -13,6 +13,7 @@ class PermissionFactory extends Factory
             'display_name' => fake()->words(2, true),
             'description' => fake()->sentence(),
             'is_active' => true,
+            'guard_name' => 'web',
         ];
     }
 }

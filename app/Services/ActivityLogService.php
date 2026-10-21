@@ -80,16 +80,16 @@ class ActivityLogService
                         'like',
                         "%{$search}%"
                     )
-                    ->orWhere(
-                        'event',
-                        'like',
-                        "%{$search}%"
-                    )
-                    ->orWhere(
-                        'subject_type',
-                        'like',
-                        "%{$search}%"
-                    );
+                        ->orWhere(
+                            'event',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhere(
+                            'subject_type',
+                            'like',
+                            "%{$search}%"
+                        );
                 });
             }
         );
@@ -99,8 +99,7 @@ class ActivityLogService
          */
         $query->when(
             $filters->causer_id,
-            fn ($q, $causerId) =>
-                $q->where('causer_id', $causerId)
+            fn ($q, $causerId) => $q->where('causer_id', $causerId)
         );
 
         /*
@@ -108,8 +107,7 @@ class ActivityLogService
          */
         $query->when(
             $filters->event,
-            fn ($q, $event) =>
-                $q->where('event', $event)
+            fn ($q, $event) => $q->where('event', $event)
         );
 
         /*
@@ -117,8 +115,7 @@ class ActivityLogService
          */
         $query->when(
             $filters->subject_type,
-            fn ($q, $subjectType) =>
-                $q->where('subject_type', $subjectType)
+            fn ($q, $subjectType) => $q->where('subject_type', $subjectType)
         );
 
         /*
@@ -126,8 +123,7 @@ class ActivityLogService
          */
         $query->when(
             $filters->subject_id,
-            fn ($q, $subjectId) =>
-                $q->where('subject_id', $subjectId)
+            fn ($q, $subjectId) => $q->where('subject_id', $subjectId)
         );
 
         /*
@@ -135,31 +131,39 @@ class ActivityLogService
          */
         $query->when(
             $filters->date_from,
-            fn ($q, $dateFrom) =>
-                $q->whereDate(
-                    'created_at',
-                    '>=',
-                    $dateFrom
-                )
+            fn ($q, $dateFrom) => $q->whereDate(
+                'created_at',
+                '>=',
+                $dateFrom
+            )
         );
 
         $query->when(
             $filters->date_to,
-            fn ($q, $dateTo) =>
-                $q->whereDate(
-                    'created_at',
-                    '<=',
-                    $dateTo
-                )
+            fn ($q, $dateTo) => $q->whereDate(
+                'created_at',
+                '<=',
+                $dateTo
+            )
         );
 
+        $sortBy = in_array($filters->sort_by, [
+            'id',
+            'description',
+            'event',
+            'subject_type',
+            'subject_id',
+            'causer_id',
+            'created_at',
+        ], true) ? $filters->sort_by : 'created_at';
+        $sortDirection = in_array($filters->sort_dir, ['asc', 'desc'], true)
+            ? $filters->sort_dir
+            : 'desc';
+
         return $query
-            ->orderBy(
-                $filters->sort_by,
-                $filters->sort_dir
-            )
+            ->orderBy($sortBy, $sortDirection)
             ->paginate(
-                $filters->per_page
+                min(max($filters->per_page, 1), 100)
             );
     }
 }

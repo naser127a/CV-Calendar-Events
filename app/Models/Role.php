@@ -23,4 +23,5 @@ class Role extends SpatieRole
             'is_active' => 'boolean'
         ];
     }
+
 }

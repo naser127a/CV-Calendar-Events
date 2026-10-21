@@ -16,18 +16,23 @@ class RoleService
         return Cache::remember(
             'roles.all',
             now()->addHour(),
-            fn() => Role::query()
+            fn () => Role::query()
                 ->orderBy('name')
+                ->with('permissions')
                 ->get()
         );
     }
+
     public function create(array $data): Role
     {
         return DB::transaction(function () use ($data) {
 
             $role = Role::create([
                 'name' => $data['name'],
-                'guard_name' =>  'web',
+                'guard_name' => 'web',
+                'display_name' => $data['display_name'] ?? null,
+                'description' => $data['description'] ?? null,
+                'is_active' => $data['is_active'] ?? true,
             ]);
 
             if (! empty($data['permissions'])) {
@@ -46,10 +51,10 @@ class RoleService
     {
         return DB::transaction(function () use ($role, $data) {
 
-            $role->update([
-                'name' => $data['name'] ?? $role->name,
-
-            ]);
+            $role->fill(array_intersect_key(
+                $data,
+                array_flip(['name', 'display_name', 'description', 'is_active'])
+            ))->save();
 
             if (array_key_exists('permissions', $data)) {
                 $role->syncPermissions(
@@ -71,8 +76,9 @@ class RoleService
             role: $role->fresh(),
             action: 'deleted',
         );
+
         return DB::transaction(
-            fn() => (bool) $role->delete()
+            fn () => (bool) $role->delete()
         );
     }
 
@@ -93,8 +99,9 @@ class RoleService
         array $permissions
     ): Role {
         return DB::transaction(function () use ($role, $permissions) {
-
-            $role->revokePermissionTo($permissions);
+            foreach ($permissions as $permission) {
+                $role->revokePermissionTo($permission);
+            }
 
             return $role->fresh()->load('permissions');
         });
@@ -120,18 +127,20 @@ class RoleService
                 role: $role->fresh(),
                 action: 'Sync',
             );
+
             return $role->fresh()->load('permissions');
         });
     }
 
     public function findByName(string $name, string $guard = 'web'): Role
     {
-        return Role::findByName($name, $guard);
+        return Role::findByName($name, $guard)->load('permissions');
     }
 
     public function paginate(int $perPage = 10): LengthAwarePaginator
     {
-        return Role::orderBy('name')
+        return Role::with('permissions')
+            ->orderBy('name')
             ->paginate($perPage);
     }
 }

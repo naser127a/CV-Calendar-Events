@@ -35,7 +35,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(
         [
             'auth:sanctum',
-            'throttle:api'
+            'throttle:api',
         ]
     )->group(function () {
 
@@ -56,7 +56,6 @@ Route::prefix('v1')->group(function () {
         |--------------------------------------------------------------------------
         */
 
-
         Route::prefix('roles')->controller(RoleController::class)->group(function () {
             Route::get('/', 'index')->name('roles.index');
             Route::post('/', 'store')->name('roles.store');
@@ -64,6 +63,9 @@ Route::prefix('v1')->group(function () {
             // المسارات الإضافية
             Route::get('{role}/permissions', 'permissions')->name('roles.permissions');
             Route::post('{role}/permissions', 'syncPermissions')->name('roles.sync-permissions');
+            Route::post('{role}/permissions/attach', 'attachPermissions')->name('roles.attach-permissions');
+            Route::delete('{role}/permissions/detach', 'detachPermissions')->name('roles.detach-permissions');
+            Route::post('{role}/permissions/sync', 'syncPermissions')->name('roles.sync-permissions.alias');
 
             Route::get('{role}', 'show')->name('roles.show');
             Route::put('{role}', 'update')->name('roles.update');
@@ -82,8 +84,6 @@ Route::prefix('v1')->group(function () {
         |--------------------------------------------------------------------------
         */
 
-        Route::apiResource('users', UserController::class);
-
         Route::prefix('users')->controller(UserController::class)->group(function () {
 
             Route::patch('{user}/activate', 'activate')
@@ -99,6 +99,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/{id}/restore', 'restore');
             Route::delete('/{id}/force-delete', 'forceDelete');
         });
+
+        Route::apiResource('users', UserController::class);
 
         /*
         |--------------------------------------------------------------------------
@@ -136,7 +138,6 @@ Route::prefix('v1')->group(function () {
         |--------------------------------------------------------------------------
         */
 
-
         Route::prefix('news')->controller(NewsController::class)->group(function () {
 
             Route::patch('{news}/toggle-status', 'toggleStatus')
@@ -153,7 +154,7 @@ Route::prefix('v1')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::get('/activity-logs', [ActivityLogController::class, 'index']);
-
+        Route::get('/activity-logs/{activity}', [ActivityLogController::class, 'show']);
 
         /*
         |--------------------------------------------------------------------------

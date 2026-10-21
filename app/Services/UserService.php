@@ -156,21 +156,14 @@ class UserService extends BaseService
      */
     public function softDeleteUser(int $id): bool
     {
-        try {
-            return DB::transaction(function () use ($id) {
-                $deleted = $this->users->softDelete($id);
+        return DB::transaction(function () use ($id) {
+            $user = $this->users->findById($id);
+            $deleted = $this->deleteUserAction->execute($user);
 
-                // يمكنك هنا إضافة حذف منطقي للبيانات المرتبطة (مثل مقالات المستخدم)
-                // $this->postRepository->softDeleteByUser($id);
+            Log::info("تم الحذف المنطقي للمستخدم رقم: {$id} بواسطة النظام.");
 
-                Log::info("تم الحذف المنطقي للمستخدم رقم: {$id} بواسطة النظام.");
-
-                return $deleted;
-            });
-        } catch (Exception $e) {
-            Log::error("خطأ أثناء الحذف المنطقي للمستخدم {$id}: " . $e->getMessage());
-            throw new Exception("تعذر حذف المستخدم في الوقت الحالي.");
-        }
+            return $deleted;
+        });
     }
 
     /**
@@ -178,18 +171,12 @@ class UserService extends BaseService
      */
     public function restoreUser(int $id): bool
     {
-        try {
-            return DB::transaction(function () use ($id) {
-                $restored = $this->users->restore($id);
+        return DB::transaction(function () use ($id) {
+            $restored = $this->users->restore($id);
+            Log::info("تم استرجاع المستخدم رقم: {$id}");
 
-                Log::info("تم استرجاع المستخدم رقم: {$id}");
-
-                return $restored;
-            });
-        } catch (Exception $e) {
-            Log::error("خطأ أثناء استرجاع المستخدم {$id}: " . $e->getMessage());
-            throw new Exception("تعذر استرجاع المستخدم.");
-        }
+            return $restored;
+        });
     }
 
     /**
@@ -197,21 +184,28 @@ class UserService extends BaseService
      */
     public function forceDeleteUser(int $id): bool
     {
-        try {
-            return DB::transaction(function () use ($id) {
-                // ملاحظة: هنا المكان الأنسب لحذف الملفات المرفوعة للمستخدم من الـ Storage
-                // مثال: Storage::delete('users/avatars/' . $id . '.jpg');
+        return DB::transaction(function () use ($id) {
+            $user = User::withTrashed()->findOrFail($id);
+            if (Auth::id() === $user->id) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'user' => 'لا يمكنك حذف حسابك.',
+                ]);
+            }
 
-                $deleted = $this->users->forceDelete($id);
+            if (
+                $user->hasRole('admin')
+                && User::role('admin')->count() <= 1
+            ) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'user' => 'لا يمكن حذف آخر مدير في النظام.',
+                ]);
+            }
 
-                Log::warning("تنبيه: تم الحذف النهائي للمستخدم رقم: {$id} ولا يمكن التراجع عن هذه العملية.");
+            $deleted = $this->users->forceDelete($id);
+            Log::warning("تنبيه: تم الحذف النهائي للمستخدم رقم: {$id} ولا يمكن التراجع عن هذه العملية.");
 
-                return $deleted;
-            });
-        } catch (Exception $e) {
-            Log::critical("فشل الحذف النهائي للمستخدم {$id}: " . $e->getMessage());
-            throw new Exception("تعذر حذف المستخدم نهائياً.");
-        }
+            return $deleted;
+        });
     }
 
     /**
@@ -219,12 +213,7 @@ class UserService extends BaseService
      */
     public function getAllUsersIncludingTrashed(): Collection
     {
-        try {
-            return $this->users->getAllWithTrashed();
-        } catch (Exception $e) {
-            Log::error("خطأ في جلب كل المستخدمين: " . $e->getMessage());
-            return new Collection(); // إرجاع مجموعة فارغة في حالة الخطأ لتجنب توقف النظام
-        }
+        return $this->users->getAllWithTrashed();
     }
 
     /**
@@ -232,12 +221,7 @@ class UserService extends BaseService
      */
     public function getTrashedUsersOnly(): Collection
     {
-        try {
-            return $this->users->getOnlyTrashed();
-        } catch (Exception $e) {
-            Log::error("خطأ في جلب المستخدمين المحذوفين: " . $e->getMessage());
-            return new Collection();
-        }
+        return $this->users->getOnlyTrashed();
     }
 
     /**
@@ -245,10 +229,6 @@ class UserService extends BaseService
      */
     public function isUserTrashed(int $id): bool
     {
-        try {
-            return $this->users->isTrashed($id);
-        } catch (Exception $e) {
-            return false; // إذا لم يتم العثور على المستخدم، نعتبره غير محذوف أو نعالج الخطأ
-        }
+        return $this->users->isTrashed($id);
     }
 }

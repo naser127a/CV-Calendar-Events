@@ -72,6 +72,11 @@ class User extends Authenticatable
         return $this->hasMany(News::class, 'created_by');
     }
 
+    protected function getDefaultGuardName(): string
+    {
+        return 'web';
+    }
+
     public function isSuperAdmin(): bool
     {
         return $this->hasRole('super_admin');

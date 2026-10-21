@@ -16,9 +16,7 @@ class RoleTest extends TestCase
     {
         $role = Role::factory()->create();
 
-        $user = User::factory()->create([
-            'role_id' => $role->id,
-        ]);
+        $user = User::factory()->withRole($role)->create();
 
         $this->assertTrue(
             $role->users->contains($user)
@@ -38,7 +36,7 @@ class RoleTest extends TestCase
         );
     }
 
-    public function test_role_has_permission_returns_true_when_permission_exists(): void
+    public function test_role_has_permission_through_spatie(): void
     {
         $role = Role::factory()->create();
 
@@ -49,7 +47,7 @@ class RoleTest extends TestCase
         $role->permissions()->attach($permission);
 
         $this->assertTrue(
-            $role->can('users.view')
+            $role->hasPermissionTo('users.view')
         );
     }
 
@@ -58,7 +56,7 @@ class RoleTest extends TestCase
         $role = Role::factory()->create();
 
         $this->assertFalse(
-            $role->can('users.delete')
+            $role->checkPermissionTo('users.delete')
         );
     }
 

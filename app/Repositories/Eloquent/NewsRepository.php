@@ -19,9 +19,9 @@ class NewsRepository extends BaseRepository implements NewsRepositoryInterface
 
     public function search(NewsFilterData $filters): LengthAwarePaginator
     {
-        $query =$this->model->newQuery()->with('user');
+        $query = $this->model->newQuery()->with('user');
 
-        if($filters->search) {
+        if ($filters->search) {
             $query->where(function ($q) use ($filters) {
                 $q->where('title', 'like', "%{$filters->search}%")
                     ->orWhere('summary', 'like', "%{$filters->search}%")
@@ -29,34 +29,48 @@ class NewsRepository extends BaseRepository implements NewsRepositoryInterface
             });
         }
 
-        if($filters->type) {
+        if ($filters->type) {
             $query->where('type', $filters->type);
         }
-        if($filters->sourceType) {
+        if ($filters->sourceType) {
             $query->where('source_type', $filters->sourceType);
         }
-        if($filters->status !== null) {
+        if ($filters->status !== null) {
             $query->where('status', $filters->status);
         }
 
-        if($filters->isBreaking !== null) {
+        if ($filters->isBreaking !== null) {
             $query->where('is_breaking', $filters->isBreaking);
         }
 
-        if($filters->createdBy) {
+        if ($filters->createdBy) {
             $query->where('created_by', $filters->createdBy);
         }
 
-        if($filters->publishedFrom) {
+        if ($filters->publishedFrom) {
             $query->where('published_at', '>=', $filters->publishedFrom);
         }
-        if($filters->publishedTo) {
+        if ($filters->publishedTo) {
             $query->where('published_at', '<=', $filters->publishedTo);
         }
 
-        $query->orderBy($filters->sortBy ?? 'published_at', $filters->sortOrder ?? 'desc');
+        $allowedSortColumns = [
+            'id',
+            'title',
+            'type',
+            'source_type',
+            'published_at',
+            'created_at',
+        ];
+        $sortBy = in_array($filters->sortBy, $allowedSortColumns, true)
+            ? $filters->sortBy
+            : 'published_at';
+        $sortOrder = in_array($filters->sortOrder, ['asc', 'desc'], true)
+            ? $filters->sortOrder
+            : 'desc';
 
-        return $query->paginate($filters->perPage ?? 10, ['*'], 'page', $filters->page ?? 1);
+        return $query->orderBy($sortBy, $sortOrder)
+            ->paginate(min(max($filters->perPage ?? 10, 1), 100), ['*'], 'page', max($filters->page ?? 1, 1));
 
     }
 }

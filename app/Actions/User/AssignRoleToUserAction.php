@@ -11,8 +11,7 @@ class AssignRoleToUserAction
         User $user,
         Role $role
     ): User {
-
-        $user->assignRole($role->name);
+        $user->syncRoles([$role]);
 
         return $user->fresh('roles');
     }

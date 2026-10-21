@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Enums\RolePermissionEnum;
 use App\Models\CalendarEvent;
+use App\Models\Permission;
+use App\Models\User;
 use App\Policies\CalendarEventPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -28,27 +31,45 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Gate::policy(CalendarEvent::class, CalendarEventPolicy::class);
+        Gate::policy(CalendarEvent::class, CalendarEventPolicy::class);
+        Gate::define('manageRolePermissions', function (User $user): bool {
+            return $user->can(RolePermissionEnum::ASSIGN_PERMISSIONS->value);
+        });
+        Gate::define('assignRolePermissions', function (User $user, array $permissionIds): bool {
+            if (! $user->can(RolePermissionEnum::ASSIGN_PERMISSIONS->value)) {
+                return false;
+            }
+
+            $permissions = Permission::query()
+                ->whereKey($permissionIds)
+                ->get();
+
+            return $permissions->count() === count($permissionIds)
+                && $permissions->every(
+                    fn (Permission $permission): bool => $user->checkPermissionTo($permission)
+                );
+        });
+
         RateLimiter::for('api', function (Request $request) {
             return $request->user()
-                ? Limit::perMinute(60)->by('user:' . $request->user()->id)
-                : Limit::perMinute(30)->by('ip:' . $request->ip());
+                ? Limit::perMinute(60)->by('user:'.$request->user()->id)
+                : Limit::perMinute(30)->by('ip:'.$request->ip());
         });
 
         RateLimiter::for('login', function (Request $request) {
             return [
-                Limit::perMinute(20)->by('ip:' . $request->ip()),
+                Limit::perMinute(20)->by('ip:'.$request->ip()),
 
                 Limit::perMinute(5)->by(
-                    'login:' . strtolower((string) $request->input('email'))
-                        . '|' . $request->ip()
+                    'login:'.strtolower((string) $request->input('email'))
+                        .'|'.$request->ip()
                 ),
             ];
         });
 
         RateLimiter::for('register', function (Request $request) {
             return Limit::perMinute(3)->by(
-                'register:' . $request->ip()
+                'register:'.$request->ip()
             );
         });
     }

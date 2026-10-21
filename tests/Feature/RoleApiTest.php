@@ -13,6 +13,14 @@ use Tests\TestCase;
 class RoleApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed();
+    }
+
     public function test_authorized_user_can_view_roles(): void
     {
         // Arrange
@@ -83,6 +91,7 @@ class RoleApiTest extends TestCase
             'display_name' => 'محرر',
         ]);
     }
+
     public function test_create_role_requires_name(): void
     {
         $admin = User::where('email', 'admin@admin.com')->firstOrFail();
@@ -100,6 +109,7 @@ class RoleApiTest extends TestCase
             'name',
         ]);
     }
+
     public function test_create_role_rejects_duplicate_name(): void
     {
         $admin = User::where('email', 'admin@admin.com')->firstOrFail();
@@ -124,233 +134,298 @@ class RoleApiTest extends TestCase
     }
 
     public function test_authorized_user_can_view_single_role(): void
-{
-    $admin = User::where('email', 'admin@admin.com')->firstOrFail();
+    {
+        $admin = User::where('email', 'admin@admin.com')->firstOrFail();
 
-    $role = Role::factory()->create([
-        'name' => 'editor',
-        'display_name' => 'محرر',
-    ]);
+        $role = Role::factory()->create([
+            'name' => 'editor',
+            'display_name' => 'محرر',
+        ]);
 
-    Sanctum::actingAs($admin);
+        Sanctum::actingAs($admin);
 
-    $response = $this->getJson(
-        "/api/v1/roles/{$role->id}"
-    );
+        $response = $this->getJson(
+            "/api/v1/roles/{$role->id}"
+        );
 
-    $response->assertSuccessful();
+        $response->assertSuccessful();
 
-    $response->assertJsonPath(
-        'data.id',
-        $role->id
-    );
+        $response->assertJsonPath(
+            'data.id',
+            $role->id
+        );
 
-    $response->assertJsonPath(
-        'data.name',
-        'editor'
-    );
-}
+        $response->assertJsonPath(
+            'data.name',
+            'editor'
+        );
+    }
 
-public function test_view_single_role_returns_not_found_for_missing_role(): void
-{
-    $admin = User::where('email', 'admin@admin.com')->firstOrFail();
+    public function test_view_single_role_returns_not_found_for_missing_role(): void
+    {
+        $admin = User::where('email', 'admin@admin.com')->firstOrFail();
 
-    Sanctum::actingAs($admin);
+        Sanctum::actingAs($admin);
 
-    $response = $this->getJson('/api/v1/roles/999999');
+        $response = $this->getJson('/api/v1/roles/999999');
 
-    $response->assertNotFound();
-}
+        $response->assertNotFound();
+    }
 
-public function test_authorized_user_can_update_role(): void
-{
-    $admin = User::where('email', 'admin@admin.com')->firstOrFail();
+    public function test_authorized_user_can_update_role(): void
+    {
+        $admin = User::where('email', 'admin@admin.com')->firstOrFail();
 
-    $role = Role::factory()->create([
-        'name' => 'editor',
-        'display_name' => 'محرر',
-    ]);
+        $role = Role::factory()->create([
+            'name' => 'editor',
+            'display_name' => 'محرر',
+        ]);
 
-    Sanctum::actingAs($admin);
+        Sanctum::actingAs($admin);
 
-    $response = $this->putJson(
-        "/api/v1/roles/{$role->id}",
-        [
+        $response = $this->putJson(
+            "/api/v1/roles/{$role->id}",
+            [
+                'name' => 'senior-editor',
+                'display_name' => 'محرر أول',
+                'description' => 'دور محدث',
+            ]
+        );
+
+        $response->assertSuccessful();
+
+        $this->assertDatabaseHas('roles', [
+            'id' => $role->id,
             'name' => 'senior-editor',
             'display_name' => 'محرر أول',
-            'description' => 'دور محدث',
-        ]
-    );
+        ]);
+    }
 
-    $response->assertSuccessful();
+    public function test_authorized_user_can_delete_role(): void
+    {
+        $admin = User::where('email', 'admin@admin.com')->firstOrFail();
 
-    $this->assertDatabaseHas('roles', [
-        'id' => $role->id,
-        'name' => 'senior-editor',
-        'display_name' => 'محرر أول',
-    ]);
-}
+        $role = Role::factory()->create([
+            'name' => 'temporary-role',
+        ]);
 
-public function test_authorized_user_can_delete_role(): void
-{
-    $admin = User::where('email', 'admin@admin.com')->firstOrFail();
+        Sanctum::actingAs($admin);
 
-    $role = Role::factory()->create([
-        'name' => 'temporary-role',
-    ]);
+        $response = $this->deleteJson(
+            "/api/v1/roles/{$role->id}"
+        );
 
-    Sanctum::actingAs($admin);
+        $response->assertSuccessful();
 
-    $response = $this->deleteJson(
-        "/api/v1/roles/{$role->id}"
-    );
+        $this->assertDatabaseMissing('roles', [
+            'id' => $role->id,
+        ]);
+    }
 
-    $response->assertSuccessful();
+    public function test_authorized_user_can_view_role_permissions(): void
+    {
+        $admin = User::where('email', 'admin@admin.com')->firstOrFail();
 
-    $this->assertDatabaseMissing('roles', [
-        'id' => $role->id,
-    ]);
-}
+        $role = Role::factory()->create([
+            'name' => 'editor',
+        ]);
 
-public function test_authorized_user_can_view_role_permissions(): void
-{
-    $admin = User::where('email', 'admin@admin.com')->firstOrFail();
+        $permission = Permission::factory()->create([
+            'name' => 'news.view',
+        ]);
 
-    $role = Role::factory()->create([
-        'name' => 'editor',
-    ]);
+        $role->permissions()->attach($permission);
 
-    $permission = Permission::factory()->create([
-        'name' => 'news.view',
-    ]);
+        Sanctum::actingAs($admin);
 
-    $role->permissions()->attach($permission);
+        $response = $this->getJson(
+            "/api/v1/roles/{$role->id}/permissions"
+        );
 
-    Sanctum::actingAs($admin);
+        $response->assertSuccessful();
 
-    $response = $this->getJson(
-        "/api/v1/roles/{$role->id}/permissions"
-    );
+        $response->assertJsonFragment([
+            'name' => 'news.view',
+        ]);
+    }
 
-    $response->assertSuccessful();
+    public function test_authorized_user_can_attach_permission_to_role(): void
+    {
+        $admin = User::where('email', 'admin@admin.com')->firstOrFail();
 
-    $response->assertJsonFragment([
-        'name' => 'news.view',
-    ]);
-}
+        $role = Role::factory()->create([
+            'name' => 'editor',
+        ]);
 
-public function test_authorized_user_can_attach_permission_to_role(): void
-{
-    $admin = User::where('email', 'admin@admin.com')->firstOrFail();
+        $permission = Permission::factory()->create([
+            'name' => 'news.view',
+        ]);
+        $admin->givePermissionTo($permission);
 
-    $role = Role::factory()->create([
-        'name' => 'editor',
-    ]);
+        Sanctum::actingAs($admin);
 
-    $permission = Permission::factory()->create([
-        'name' => 'news.view',
-    ]);
+        $response = $this->postJson(
+            "/api/v1/roles/{$role->id}/permissions/attach",
+            [
+                'permissions' => [$permission->id],
+            ]
+        );
 
-    Sanctum::actingAs($admin);
+        $response->assertSuccessful();
 
-    $response = $this->postJson(
-        "/api/v1/roles/{$role->id}/permissions/attach",
-        [
-            'permissions' => [$permission->id],
-        ]
-    );
+        $this->assertDatabaseHas('role_has_permissions', [
+            'role_id' => $role->id,
+            'permission_id' => $permission->id,
+        ]);
+    }
 
-    $response->assertSuccessful();
+    public function test_role_manager_cannot_grant_a_permission_they_do_not_have(): void
+    {
+        $managerRole = Role::factory()->create(['name' => 'role_manager']);
+        $managerRole->syncPermissions([
+            RolePermissionEnum::UPDATE->value,
+            RolePermissionEnum::ASSIGN_PERMISSIONS->value,
+        ]);
+        $manager = User::factory()->withRole($managerRole)->create();
+        $targetRole = Role::factory()->create(['name' => 'target_role']);
+        $privilegedPermission = Permission::where(
+            'name',
+            'assign_privileged_roles'
+        )->firstOrFail();
 
-    $this->assertDatabaseHas('permission_has_role', [
-        'role_id' => $role->id,
-        'permission_id' => $permission->id,
-    ]);
-}
+        Sanctum::actingAs($manager);
 
-public function test_authorized_user_can_detach_permission_from_role(): void
-{
-    $admin = User::where('email', 'admin@admin.com')->firstOrFail();
+        $this->postJson(
+            "/api/v1/roles/{$targetRole->id}/permissions/attach",
+            ['permissions' => [$privilegedPermission->id]]
+        )->assertForbidden();
 
-    $role = Role::factory()->create([
-        'name' => 'editor',
-    ]);
+        $this->assertDatabaseMissing('role_has_permissions', [
+            'role_id' => $targetRole->id,
+            'permission_id' => $privilegedPermission->id,
+        ]);
+    }
 
-    $permission = Permission::factory()->create([
-        'name' => 'news.view',
-    ]);
+    public function test_role_manager_cannot_create_or_update_a_role_with_unheld_permissions(): void
+    {
+        $managerRole = Role::factory()->create(['name' => 'limited_role_manager']);
+        $managerRole->syncPermissions([
+            RolePermissionEnum::CREATE->value,
+            RolePermissionEnum::UPDATE->value,
+            RolePermissionEnum::ASSIGN_PERMISSIONS->value,
+        ]);
+        $manager = User::factory()->withRole($managerRole)->create();
+        $targetRole = Role::factory()->create(['name' => 'existing_role']);
+        $privilegedPermission = Permission::where(
+            'name',
+            'assign_privileged_roles'
+        )->firstOrFail();
 
-    $role->permissions()->attach($permission);
+        Sanctum::actingAs($manager);
 
-    Sanctum::actingAs($admin);
+        $this->postJson('/api/v1/roles', [
+            'name' => 'new_privileged_role',
+            'permissions' => [$privilegedPermission->id],
+        ])->assertForbidden();
 
-    $response = $this->deleteJson(
-        "/api/v1/roles/{$role->id}/permissions/detach",
-        [
-            'permissions' => [$permission->id],
-        ]
-    );
+        $this->putJson("/api/v1/roles/{$targetRole->id}", [
+            'permissions' => [$privilegedPermission->id],
+        ])->assertForbidden();
 
-    $response->assertSuccessful();
+        $this->assertDatabaseMissing('roles', [
+            'name' => 'new_privileged_role',
+        ]);
+        $this->assertDatabaseMissing('role_has_permissions', [
+            'role_id' => $targetRole->id,
+            'permission_id' => $privilegedPermission->id,
+        ]);
+    }
 
-    $this->assertDatabaseMissing('permission_has_role', [
-        'role_id' => $role->id,
-        'permission_id' => $permission->id,
-    ]);
-}
+    public function test_authorized_user_can_detach_permission_from_role(): void
+    {
+        $admin = User::where('email', 'admin@admin.com')->firstOrFail();
 
-public function test_authorized_user_can_sync_role_permissions(): void
-{
-    $admin = User::where('email', 'admin@admin.com')->firstOrFail();
+        $role = Role::factory()->create([
+            'name' => 'editor',
+        ]);
 
-    $role = Role::factory()->create([
-        'name' => 'editor',
-    ]);
+        $permission = Permission::factory()->create([
+            'name' => 'news.view',
+        ]);
 
-    $permissionA = Permission::factory()->create([
-        'name' => 'news.view',
-    ]);
+        $role->permissions()->attach($permission);
 
-    $permissionB = Permission::factory()->create([
-        'name' => 'news.create',
-    ]);
+        Sanctum::actingAs($admin);
 
-    $permissionC = Permission::factory()->create([
-        'name' => 'news.update',
-    ]);
+        $response = $this->deleteJson(
+            "/api/v1/roles/{$role->id}/permissions/detach",
+            [
+                'permissions' => [$permission->id],
+            ]
+        );
 
-    $role->permissions()->attach([
-        $permissionA->id,
-        $permissionB->id,
-    ]);
+        $response->assertSuccessful();
 
-    Sanctum::actingAs($admin);
+        $this->assertDatabaseMissing('role_has_permissions', [
+            'role_id' => $role->id,
+            'permission_id' => $permission->id,
+        ]);
+    }
 
-    $response = $this->postJson(
-        "/api/v1/roles/{$role->id}/permissions/sync",
-        [
-            'permissions' => [
-                $permissionA->id,
-                $permissionC->id,
-            ],
-        ]
-    );
+    public function test_authorized_user_can_sync_role_permissions(): void
+    {
+        $admin = User::where('email', 'admin@admin.com')->firstOrFail();
 
-    $response->assertSuccessful();
+        $role = Role::factory()->create([
+            'name' => 'editor',
+        ]);
 
-    $this->assertDatabaseHas('permission_has_role', [
-        'role_id' => $role->id,
-        'permission_id' => $permissionA->id,
-    ]);
+        $permissionA = Permission::factory()->create([
+            'name' => 'news.view',
+        ]);
+        $admin->givePermissionTo($permissionA);
 
-    $this->assertDatabaseHas('permission_has_role', [
-        'role_id' => $role->id,
-        'permission_id' => $permissionC->id,
-    ]);
+        $permissionB = Permission::factory()->create([
+            'name' => 'news.create',
+        ]);
 
-    $this->assertDatabaseMissing('permission_has_role', [
-        'role_id' => $role->id,
-        'permission_id' => $permissionB->id,
-    ]);
-}
+        $permissionC = Permission::factory()->create([
+            'name' => 'news.update',
+        ]);
+        $admin->givePermissionTo([$permissionB, $permissionC]);
+
+        $role->permissions()->attach([
+            $permissionA->id,
+            $permissionB->id,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->postJson(
+            "/api/v1/roles/{$role->id}/permissions/sync",
+            [
+                'permissions' => [
+                    $permissionA->id,
+                    $permissionC->id,
+                ],
+            ]
+        );
+
+        $response->assertSuccessful();
+
+        $this->assertDatabaseHas('role_has_permissions', [
+            'role_id' => $role->id,
+            'permission_id' => $permissionA->id,
+        ]);
+
+        $this->assertDatabaseHas('role_has_permissions', [
+            'role_id' => $role->id,
+            'permission_id' => $permissionC->id,
+        ]);
+
+        $this->assertDatabaseMissing('role_has_permissions', [
+            'role_id' => $role->id,
+            'permission_id' => $permissionB->id,
+        ]);
+    }
 }

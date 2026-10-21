@@ -13,14 +13,29 @@ class CalendarFilterRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->merge([
-            'status' => $this->has('status')
-                ? filter_var($this->status, FILTER_VALIDATE_BOOLEAN)
-                : null,
+        $status = $this->input('status');
+        if ($status === '') {
+            $status = null;
+        } elseif (is_string($status) || is_int($status) || is_bool($status)) {
+            $normalizedStatus = filter_var(
+                $status,
+                FILTER_VALIDATE_BOOLEAN,
+                FILTER_NULL_ON_FAILURE
+            );
 
-            'per_page' => $this->per_page
-                ? (int) $this->per_page
-                : 15,
+            if ($normalizedStatus !== null) {
+                $status = $normalizedStatus;
+            }
+        }
+
+        $perPage = $this->input('per_page');
+        if ($perPage === null || $perPage === '') {
+            $perPage = 15;
+        }
+
+        $this->merge([
+            'status' => $status,
+            'per_page' => $perPage,
         ]);
     }
 
@@ -34,7 +49,7 @@ class CalendarFilterRequest extends FormRequest
             'sort_by' => ['nullable', 'in:id,title,start_at,end_at,created_at'],
             'sort_dir' => ['nullable', 'in:asc,desc'],
 
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'per_page' => ['required', 'integer', 'min:1', 'max:100'],
         ];
     }
 }

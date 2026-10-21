@@ -4,12 +4,17 @@ namespace Tests\Unit\Policies;
 
 use App\Enums\NewsPermissionEnum;
 use App\Models\News;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use App\Policies\NewsPolicy;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class NewsPolicyTest extends TestCase
 {
+    use RefreshDatabase;
+
     private NewsPolicy $policy;
 
     protected function setUp(): void
@@ -23,9 +28,7 @@ class NewsPolicyTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $user->role->permissions()->attach(
-            $this->permission(NewsPermissionEnum::VIEW_ALL->value)
-        );
+        $this->grant($user, $this->permission(NewsPermissionEnum::VIEW_ALL->value));
 
         $this->assertTrue(
             $this->policy->viewAny($user)
@@ -45,9 +48,7 @@ class NewsPolicyTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $user->role->permissions()->attach(
-            $this->permission(NewsPermissionEnum::VIEW->value)
-        );
+        $this->grant($user, $this->permission(NewsPermissionEnum::VIEW->value));
 
         $news = News::factory()->create();
 
@@ -70,9 +71,7 @@ class NewsPolicyTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $user->role->permissions()->attach(
-            $this->permission(NewsPermissionEnum::CREATE->value)
-        );
+        $this->grant($user, $this->permission(NewsPermissionEnum::CREATE->value));
 
         $this->assertTrue(
             $this->policy->create($user)
@@ -83,9 +82,7 @@ class NewsPolicyTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $user->role->permissions()->attach(
-            $this->permission(NewsPermissionEnum::UPDATE->value)
-        );
+        $this->grant($user, $this->permission(NewsPermissionEnum::UPDATE->value));
 
         $news = News::factory()->create();
 
@@ -98,9 +95,7 @@ class NewsPolicyTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $user->role->permissions()->attach(
-            $this->permission(NewsPermissionEnum::DELETE->value)
-        );
+        $this->grant($user, $this->permission(NewsPermissionEnum::DELETE->value));
 
         $news = News::factory()->create();
 
@@ -113,9 +108,7 @@ class NewsPolicyTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $user->role->permissions()->attach(
-            $this->permission(NewsPermissionEnum::ACTIVATE->value)
-        );
+        $this->grant($user, $this->permission(NewsPermissionEnum::ACTIVATE->value));
 
         $news = News::factory()->create([
             'status' => false,
@@ -130,9 +123,7 @@ class NewsPolicyTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $user->role->permissions()->attach(
-            $this->permission(NewsPermissionEnum::DEACTIVATE->value)
-        );
+        $this->grant($user, $this->permission(NewsPermissionEnum::DEACTIVATE->value));
 
         $news = News::factory()->create([
             'status' => true,
@@ -145,8 +136,15 @@ class NewsPolicyTest extends TestCase
 
     private function permission(string $name)
     {
-        return \App\Models\Permission::factory()->create([
+        return Permission::factory()->create([
             'name' => $name,
         ]);
+    }
+
+    private function grant(User $user, Permission $permission): void
+    {
+        $role = Role::factory()->create();
+        $role->givePermissionTo($permission);
+        $user->assignRole($role);
     }
 }

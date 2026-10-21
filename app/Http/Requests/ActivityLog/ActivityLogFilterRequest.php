@@ -14,23 +14,13 @@ class ActivityLogFilterRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $perPage = $this->input('per_page');
+        if ($perPage === null || $perPage === '') {
+            $perPage = 15;
+        }
+
         $this->merge([
-            'sort_by' => $this->input(
-                'sort_by',
-                'created_at'
-            ),
-
-            'sort_dir' => strtolower(
-                $this->input(
-                    'sort_dir',
-                    'desc'
-                )
-            ),
-
-            'per_page' => (int) $this->input(
-                'per_page',
-                15
-            ),
+            'per_page' => $perPage,
         ]);
     }
 
@@ -99,7 +89,7 @@ class ActivityLogFilterRequest extends FormRequest
             ],
 
             'per_page' => [
-                'nullable',
+                'required',
                 'integer',
                 'min:1',
                 'max:100',

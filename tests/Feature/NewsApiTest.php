@@ -28,9 +28,7 @@ class NewsApiTest extends TestCase
             'name' => 'news_manager',
         ]);
 
-        $this->user = User::factory()->create([
-            'role_id' => $this->role->id,
-        ]);
+        $this->user = User::factory()->withRole($this->role)->create();
     }
 
     private function grant(string $permission): Permission
@@ -104,6 +102,32 @@ class NewsApiTest extends TestCase
             ->getJson('/api/v1/news');
 
         $response->assertForbidden();
+    }
+
+    public function test_user_with_view_permission_can_list_news(): void
+    {
+        $this->grant(NewsPermissionEnum::VIEW->value);
+        News::factory()->count(2)->create();
+
+        $this->auth()
+            ->getJson('/api/v1/news')
+            ->assertSuccessful()
+            ->assertJsonCount(2, 'data');
+    }
+
+    public function test_news_list_rejects_invalid_pagination_and_sorting(): void
+    {
+        $this->grant(NewsPermissionEnum::VIEW->value);
+
+        $this->auth()
+            ->getJson('/api/v1/news?per_page=2.5')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('per_page');
+
+        $this->auth()
+            ->getJson('/api/v1/news?sort_by=untrusted_column')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('sort_by');
     }
 
     /*
@@ -514,6 +538,7 @@ class NewsApiTest extends TestCase
             'status' => true,
         ]);
     }
+
     public function test_news_can_be_filtered_by_breaking_status(): void
     {
         $this->grant(NewsPermissionEnum::VIEW_ALL->value);
@@ -591,11 +616,11 @@ class NewsApiTest extends TestCase
         $data = $response->json('data');
 
         $oldPosition = collect($data)->search(
-            fn($item) => $item['id'] === $old->id
+            fn ($item) => $item['id'] === $old->id
         );
 
         $newPosition = collect($data)->search(
-            fn($item) => $item['id'] === $new->id
+            fn ($item) => $item['id'] === $new->id
         );
 
         $this->assertNotFalse($oldPosition);

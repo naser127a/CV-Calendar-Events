@@ -28,7 +28,9 @@ class UserFilterData
 
             search: $request->search,
 
-            status: $request->status,
+            status: $request->input('status') !== null
+                ? $request->boolean('status')
+                : null,
 
             roleName: $request->roleName,
 

@@ -24,20 +24,22 @@ class UpdateRoleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "name" => [
+            'name' => [
                 'sometimes',
                 'string',
                 'max:255',
-                Rule::unique('roles')->ignore($this->route('role'))
+                Rule::unique('roles')->ignore($this->route('role')),
             ],
-            "display_name" => ['sometimes', 'string', 'max:255'],
-            "description" => ['nullable', 'string'],
-            "is_active" => ['boolean'],
+            'display_name' => ['sometimes', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'is_active' => ['boolean'],
             'permissions' => ['array'],
 
             'permissions.*' => [
-                'exists:permissions,id'
-            ]
+                'integer',
+                'distinct',
+                'exists:permissions,id',
+            ],
         ];
     }
 }

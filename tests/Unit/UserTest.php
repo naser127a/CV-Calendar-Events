@@ -11,23 +11,17 @@ use Tests\TestCase;
 class UserTest extends TestCase
 {
     use RefreshDatabase;
-    public function test_user_belongs_to_role(): void
+    public function test_user_has_role_through_spatie_relationship(): void
     {
         // Arrange
         $role = Role::factory()->create([
             'name' => 'test-role',
         ]);
 
-        $user = User::factory()->create([
-            'role_id' => $role->id,
-        ]);
+        $user = User::factory()->withRole($role)->create();
 
-        // Act
-        $user->load('role');
-
-        // Assert
         $this->assertTrue(
-            $user->role->is($role)
+            $user->hasRole($role)
         );
     }
 
@@ -44,9 +38,7 @@ class UserTest extends TestCase
 
         $role->permissions()->attach($permission);
 
-        $user = User::factory()->create([
-            'role_id' => $role->id,
-        ]);
+        $user = User::factory()->withRole($role)->create();
 
         // Act
         $result = $user->can('test.permission');
@@ -66,9 +58,7 @@ class UserTest extends TestCase
             'name' => 'test-role',
         ]);
 
-        $user = User::factory()->create([
-            'role_id' => $role->id,
-        ]);
+        $user = User::factory()->withRole($role)->create();
 
         // Act
         $result = $user->can('test.permission');

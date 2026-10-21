@@ -13,6 +13,9 @@ class PermissionService
         return Permission::create([
             'name' => $data['name'],
             'guard_name' => 'web',
+            'display_name' => $data['display_name'],
+            'description' => $data['description'] ?? null,
+            'is_active' => $data['is_active'] ?? true,
         ]);
     }
 
@@ -20,9 +23,10 @@ class PermissionService
         Permission $permission,
         array $data
     ): Permission {
-        $permission->update([
-            'name' => $data['name'] ?? $permission->name,
-        ]);
+        $permission->fill(array_intersect_key(
+            $data,
+            array_flip(['name', 'display_name', 'description', 'is_active'])
+        ))->save();
 
         return $permission->fresh();
     }

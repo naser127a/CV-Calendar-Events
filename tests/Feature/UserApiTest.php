@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,9 +28,7 @@ class UserApiTest extends TestCase
 
         $this->userRole = Role::where('name', 'user')->firstOrFail();
 
-        $this->admin = User::factory()->create([
-            'role_id' => $this->adminRole->id,
-        ]);
+        $this->admin = User::factory()->withRole($this->adminRole)->create();
 
         Sanctum::actingAs($this->admin);
     }
@@ -41,9 +38,7 @@ class UserApiTest extends TestCase
      */
     public function test_authorized_user_can_view_users(): void
     {
-        User::factory()->count(3)->create([
-            'role_id' => $this->userRole->id,
-        ]);
+        User::factory()->count(3)->withRole($this->userRole)->create();
 
         $response = $this->getJson('/api/v1/users');
 
@@ -52,6 +47,23 @@ class UserApiTest extends TestCase
             ->assertJsonStructure([
                 'data',
             ]);
+    }
+
+    public function test_user_list_is_not_filtered_by_status_when_status_is_omitted(): void
+    {
+        $activeUser = User::factory()->withRole($this->userRole)->create([
+            'name' => 'Active user',
+            'status' => true,
+        ]);
+        $inactiveUser = User::factory()->withRole($this->userRole)->create([
+            'name' => 'Inactive user',
+            'status' => false,
+        ]);
+
+        $this->getJson('/api/v1/users')
+            ->assertSuccessful()
+            ->assertJsonFragment(['id' => $activeUser->id])
+            ->assertJsonFragment(['id' => $inactiveUser->id]);
     }
 
     /**
@@ -73,9 +85,7 @@ class UserApiTest extends TestCase
     {
         $role = Role::factory()->create();
 
-        $user = User::factory()->create([
-            'role_id' => $role->id,
-        ]);
+        $user = User::factory()->withRole($role)->create();
 
         Sanctum::actingAs($user);
 
@@ -95,16 +105,33 @@ class UserApiTest extends TestCase
             'password' => 'password123',
             'password_confirmation' => 'password123',
             'phone' => '0500000001',
-            'role_id' => $this->userRole->id,
-            "status"=>true
+            'roleName' => $this->userRole->name,
+            'status' => true,
         ]);
 
         $response->assertSuccessful();
 
-        $this->assertDatabaseHas('users', [
-            'email' => 'test@example.com',
-            'name' => 'Test User',
-            'role_id' => $this->userRole->id,
+        $createdUser = User::where('email', 'test@example.com')->firstOrFail();
+
+        $this->assertTrue($createdUser->hasRole($this->userRole));
+    }
+
+    public function test_user_with_create_permission_cannot_create_admin_user(): void
+    {
+        $supervisor = User::where('email', 'super@admin.com')->firstOrFail();
+        Sanctum::actingAs($supervisor);
+
+        $response = $this->postJson('/api/v1/users', [
+            'name' => 'Unauthorized Admin',
+            'email' => 'unauthorized-admin@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'roleName' => $this->adminRole->name,
+        ]);
+
+        $response->assertForbidden();
+        $this->assertDatabaseMissing('users', [
+            'email' => 'unauthorized-admin@example.com',
         ]);
     }
 
@@ -117,7 +144,7 @@ class UserApiTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'role_id' => $this->userRole->id,
+            'roleName' => $this->userRole->name,
         ]);
 
         $response
@@ -134,7 +161,7 @@ class UserApiTest extends TestCase
             'name' => 'Test User',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'role_id' => $this->userRole->id,
+            'roleName' => $this->userRole->name,
         ]);
 
         $response
@@ -147,9 +174,8 @@ class UserApiTest extends TestCase
      */
     public function test_create_user_rejects_duplicate_email(): void
     {
-        User::factory()->create([
+        User::factory()->withRole($this->userRole)->create([
             'email' => 'existing@example.com',
-            'role_id' => $this->userRole->id,
         ]);
 
         $response = $this->postJson('/api/v1/users', [
@@ -157,7 +183,7 @@ class UserApiTest extends TestCase
             'email' => 'existing@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'role_id' => $this->userRole->id,
+            'roleName' => $this->userRole->name,
         ]);
 
         $response
@@ -170,9 +196,7 @@ class UserApiTest extends TestCase
      */
     public function test_authorized_user_can_view_single_user(): void
     {
-        $user = User::factory()->create([
-            'role_id' => $this->userRole->id,
-        ]);
+        $user = User::factory()->withRole($this->userRole)->create();
 
         $response = $this->getJson("/api/v1/users/{$user->id}");
 
@@ -196,16 +220,14 @@ class UserApiTest extends TestCase
      */
     public function test_authorized_user_can_update_user(): void
     {
-        $user = User::factory()->create([
+        $user = User::factory()->withRole($this->userRole)->create([
             'name' => 'Old Name',
-            'role_id' => $this->userRole->id,
         ]);
 
         $response = $this->putJson("/api/v1/users/{$user->id}", [
             'name' => 'New Name',
             'email' => $user->email,
             'phone' => $user->phone,
-            'role_id' => $this->userRole->id,
             'status' => true,
         ]);
 
@@ -222,9 +244,7 @@ class UserApiTest extends TestCase
      */
     public function test_authorized_user_can_delete_user(): void
     {
-        $user = User::factory()->create([
-            'role_id' => $this->userRole->id,
-        ]);
+        $user = User::factory()->withRole($this->userRole)->create();
 
         $response = $this->deleteJson("/api/v1/users/{$user->id}");
 
@@ -232,7 +252,7 @@ class UserApiTest extends TestCase
 
         $this->assertDatabaseMissing('users', [
             'id' => $user->id,
-            "deleted_at"=>null
+            'deleted_at' => null,
         ]);
     }
 
@@ -241,8 +261,7 @@ class UserApiTest extends TestCase
      */
     public function test_authorized_user_can_activate_user(): void
     {
-        $user = User::factory()->create([
-            'role_id' => $this->userRole->id,
+        $user = User::factory()->withRole($this->userRole)->create([
             'status' => false,
         ]);
 
@@ -263,8 +282,7 @@ class UserApiTest extends TestCase
      */
     public function test_authorized_user_can_deactivate_user(): void
     {
-        $user = User::factory()->create([
-            'role_id' => $this->userRole->id,
+        $user = User::factory()->withRole($this->userRole)->create([
             'status' => true,
         ]);
 
@@ -287,22 +305,90 @@ class UserApiTest extends TestCase
     {
         $newRole = Role::where('name', 'supervisor')->firstOrFail();
 
-        $user = User::factory()->create([
-            'role_id' => $this->userRole->id,
-        ]);
+        $user = User::factory()->withRole($this->userRole)->create();
 
         $response = $this->patchJson(
             "/api/v1/users/{$user->id}/change-role",
             [
-                'role_id' => $newRole->id,
+                'roleName' => $newRole->name,
             ]
         );
 
         $response->assertSuccessful();
 
-        $this->assertDatabaseHas('users', [
-            'id' => $user->id,
-            'role_id' => $newRole->id,
-        ]);
+        $this->assertTrue($user->fresh()->hasRole($newRole));
+    }
+
+    public function test_user_with_edit_permission_cannot_promote_user_to_admin(): void
+    {
+        $supervisor = User::where('email', 'super@admin.com')->firstOrFail();
+        $user = User::factory()->withRole($this->userRole)->create();
+        Sanctum::actingAs($supervisor);
+
+        $response = $this->patchJson(
+            "/api/v1/users/{$user->id}/change-role",
+            ['roleName' => $this->adminRole->name]
+        );
+
+        $response->assertForbidden();
+        $this->assertTrue($user->fresh()->hasRole($this->userRole));
+    }
+
+    public function test_user_without_view_permission_cannot_list_trashed_users(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/users/trashed')->assertForbidden();
+    }
+
+    public function test_user_without_delete_permission_cannot_soft_delete_user(): void
+    {
+        $user = User::factory()->withRole($this->userRole)->create();
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->deleteJson("/api/v1/users/{$user->id}/soft-delete")
+            ->assertForbidden();
+
+        $this->assertNotSoftDeleted('users', ['id' => $user->id]);
+    }
+
+    public function test_user_without_update_permission_cannot_restore_user(): void
+    {
+        $user = User::factory()->withRole($this->userRole)->create();
+        $user->delete();
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson("/api/v1/users/{$user->id}/restore")
+            ->assertForbidden();
+
+        $this->assertSoftDeleted('users', ['id' => $user->id]);
+    }
+
+    public function test_user_without_delete_permission_cannot_force_delete_user(): void
+    {
+        $user = User::factory()->withRole($this->userRole)->create();
+        $user->delete();
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->deleteJson("/api/v1/users/{$user->id}/force-delete")
+            ->assertForbidden();
+
+        $this->assertSoftDeleted('users', ['id' => $user->id]);
+    }
+
+    public function test_admin_can_list_trashed_users_and_restore_them(): void
+    {
+        $trashedUser = User::factory()->withRole($this->userRole)->create();
+        $trashedUser->delete();
+
+        $this->getJson('/api/v1/users/trashed')
+            ->assertSuccessful()
+            ->assertJsonFragment(['id' => $trashedUser->id]);
+
+        $this->postJson("/api/v1/users/{$trashedUser->id}/restore")
+            ->assertSuccessful();
+
+        $this->assertNotSoftDeleted('users', ['id' => $trashedUser->id]);
     }
 }

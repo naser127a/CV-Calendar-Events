@@ -13,18 +13,30 @@ class UserFilterRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $perPage = $this->input('per_page');
+        if ($perPage === null || $perPage === '') {
+            $perPage = 15;
+        }
+
+        $status = $this->input('status');
+        if ($this->has('status') && (is_string($status) || is_int($status) || is_bool($status))) {
+            $normalizedStatus = filter_var(
+                $status,
+                FILTER_VALIDATE_BOOLEAN,
+                FILTER_NULL_ON_FAILURE
+            );
+
+            if ($normalizedStatus !== null) {
+                $status = $normalizedStatus;
+            }
+        }
+
         $this->merge([
-            'status'   => $this->has('status')
-                ? filter_var($this->status, FILTER_VALIDATE_BOOLEAN)
+            'status' => $status,
+            'roleName' => $this->filled('roleName')
+                ? (string) $this->input('roleName')
                 : null,
-
-            'roleName'  => $this->roleName
-                ? (string) $this->roleName
-                : null,
-
-            'per_page' => $this->per_page
-                ? (int) $this->per_page
-                : 15,
+            'per_page' => $perPage,
         ]);
     }
 
@@ -59,12 +71,7 @@ class UserFilterRequest extends FormRequest
                 'in:asc,desc',
             ],
 
-            'per_page' => [
-                'nullable',
-                'integer',
-                'min:1',
-                'max:100',
-            ],
+            'per_page' => ['required', 'integer', 'min:1', 'max:100'],
         ];
     }
 }

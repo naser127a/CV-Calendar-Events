@@ -21,6 +21,10 @@ class RoleController extends Controller
     public function index(Request $request)
     {
         $this->authorize('viewAny', Role::class);
+        $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
 
         if ($request->filled('name')) {
             $role = $this->roleService->findByName(
@@ -48,7 +52,7 @@ class RoleController extends Controller
         $this->authorize('view', $role);
 
         return ApiResponse::success(
-            new RoleResource($role),
+            new RoleResource($role->load('permissions')),
             'Role retrieved successfully.'
         );
     }
@@ -56,6 +60,11 @@ class RoleController extends Controller
     public function store(CreateRoleRequest $request)
     {
         $this->authorize('create', Role::class);
+        if ($request->has('permissions')) {
+            $this->authorize('assignRolePermissions', [
+                $request->validated('permissions'),
+            ]);
+        }
 
         $role = $this->roleService->create(
             $request->validated()
@@ -73,6 +82,11 @@ class RoleController extends Controller
         Role $role
     ) {
         $this->authorize('update', $role);
+        if ($request->has('permissions')) {
+            $this->authorize('assignRolePermissions', [
+                $request->validated('permissions'),
+            ]);
+        }
 
         $updatedRole = $this->roleService->update(
             $role,
@@ -100,6 +114,9 @@ class RoleController extends Controller
     public function permissions(Role $role, Request $request)
     {
         $this->authorize('view', $role);
+        $request->validate([
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
 
         $permissions = $this->roleService->getPermissions(
             $role,
@@ -112,11 +129,46 @@ class RoleController extends Controller
         );
     }
 
+    public function attachPermissions(
+        SyncRolePermissionsRequest $request,
+        Role $role
+    ) {
+        $this->authorize('update', $role);
+        $this->authorize('assignRolePermissions', [
+            $request->validated('permissions'),
+        ]);
+
+        $this->roleService->attachPermissions(
+            $role,
+            $request->validated('permissions')
+        );
+
+        return ApiResponse::success(null, 'Permissions attached successfully.');
+    }
+
+    public function detachPermissions(
+        SyncRolePermissionsRequest $request,
+        Role $role
+    ) {
+        $this->authorize('update', $role);
+        $this->authorize('manageRolePermissions');
+
+        $this->roleService->detachPermissions(
+            $role,
+            $request->validated('permissions')
+        );
+
+        return ApiResponse::success(null, 'Permissions detached successfully.');
+    }
+
     public function syncPermissions(
         SyncRolePermissionsRequest $request,
         Role $role
     ) {
         $this->authorize('update', $role);
+        $this->authorize('assignRolePermissions', [
+            $request->validated('permissions'),
+        ]);
 
         $this->roleService->syncPermissions(
             $role,

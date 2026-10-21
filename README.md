@@ -1,96 +1,113 @@
-# 🚀 Robust & Scalable Laravel 13 RESTful API for React Dashboard
+# CV Calendar Events API
 
-A production-grade, highly architectural Backend API built with **Laravel 13**, **PHP 8.3**, **MySQL**, and **Redis**. Engineered specifically to serve a modern **React Frontend Dashboard**, with an emphasis on **clean architecture**, **thin controllers**, **solid authorization/authentication**, and **event-driven background processing**.
+Laravel 12 REST API for the CV Calendar Events application.
 
----
+## Stack
 
-## 🛠️ Tech Stack & Architecture Overview
+- PHP `^8.2`, Laravel `^12.0`
+- Laravel Sanctum personal access tokens
+- Spatie Laravel Permission for all role and permission assignments
+- Spatie Activity Log
+- MySQL or SQLite, depending on the deployment environment
 
-* **Framework:** Laravel 13 (PHP 8.3)
-* **Authentication:** Laravel Sanctum (Bearer Token Authentication)
-* **Authorization & RBAC:** `spatie/laravel-permission`
-* **Caching & Queue Driver:** Redis (via Docker)
-* **Audit Trail:** `spatie/laravel-activitylog`
-* **Database:** MySQL
-* **Development Environment:** Laragon, WSL2, Docker
+There is no `role_id` column on `users`. Users can have multiple roles through Spatie's `roles` relationship. Role and permission changes should use Spatie's APIs; do not add a second role-assignment mechanism.
 
----
+## Local setup
 
-## 🏗️ Architectural Principles & Design Decisions
+1. Install PHP dependencies with `composer install`.
+2. Copy `.env.example` to `.env`, set the database connection, and generate an application key with `php artisan key:generate`.
+3. Run `php artisan migrate` against a development database. Back up databases before running migrations in any shared or production environment.
+4. Seed the database if development roles and permissions are needed: `php artisan db:seed`.
+5. Run the application with `php artisan serve`.
 
-This repository prioritizes code maintainability, domain safety, and robust system design over superficial abstractions:
+Run the test suite with `php artisan test`. PHPUnit forces SQLite in-memory and the array cache/queue drivers so tests do not use the database configured in `.env`.
 
-1. **Thin Controllers:** Controllers only handle request routing, validation invocation, and HTTP response returning.
-2. **Application Logic in Services & Actions:**
-   * **Services:** Orchestrate complex application workflows and query scoping.
-   * **Actions:** Encapsulate strict domain business operations (e.g., `ChangeUserRoleAction`).
-3. **Event-Driven Architecture:**
-   * Business-critical state changes dispatch domain events implementing `ShouldDispatchAfterCommit` to prevent race conditions during DB transactions.
-   * Offloaded via **Queued Listeners** to background Redis workers.
-4. **Data Privacy & Security:**
-   * Custom `ApiResponse` handler providing unified JSON response signatures.
-   * Whitelisted API filtering, sorting, and cursor pagination mechanisms.
-   * Strict Policy-based authorization wrappers around every core resource.
-5. **Storage Handling:**
-   * Modular file management via re-usable traits with disk-abstraction wrappers.
+## API conventions
 
----
+All endpoints are under `/api/v1`. Login and registration are public; other endpoints require a Sanctum bearer token:
 
-## 🔥 Key Features Implemented
+```http
+Authorization: Bearer <token>
+Accept: application/json
+```
 
-* **Authentication System:**
-  * Login, Register, Logout, Revoke All Tokens (`logout-all`), User Profile (`/me`), Password Management.
-* **Role-Based Access Control (RBAC):**
-  * Fully integrated with Spatie Roles & Permissions (`guard_name = web`).
-  * Isolated `RoleService` and `PermissionService`.
-* **Activity & Audit Logging:**
-  * Automated entity logging (User, News, Calendar Events).
-  * Advanced activity search and scoping via `ActivityLogService` supporting multi-level permissions (`VIEW` vs `VIEW_ALL`).
-* **Background Jobs & Scheduling:**
-  * Redis-backed Queue management with automated retries, exponential backoff, and dead-letter queue logging (`failed_jobs`).
-  * Scheduled job dispatches integrated with Laravel Scheduler.
-* **API Rate Limiting:**
-  * Throttle protection customized for auth routes and general API endpoints.
-* **File Upload Infrastructure:**
-  * Reusable file handler trait handling secure uploads, replacements, and deletions.
+Successful non-paginated responses use:
 
----
+```json
+{
+  "success": true,
+  "message": "…",
+  "data": {}
+}
+```
 
-## 📡 API Reference Endpoint Overview (`/api/v1`)
+Paginated responses return the resource array in `data` and pagination details in `meta` (`current_page`, `last_page`, `per_page`, `total`, `from`, `to`). Validation failures use HTTP 422 and Laravel's JSON validation-error response. Unauthenticated and unauthorized requests return HTTP 401 and 403, respectively.
 
-### 🔐 Authentication
-* `POST /api/v1/register` - Create new user account
-* `POST /api/v1/login` - Authenticate & obtain Bearer Token
-* `POST /api/v1/logout` - Revoke current token
-* `POST /api/v1/logout-all` - Revoke all user tokens
-* `GET  /api/v1/me` - Fetch authenticated user details
-* `PATCH /api/v1/changePassword-password` - Update current user password
+User and profile responses expose `roles` as an array of role resources. Role resources contain `id`, `name`, `display_name`, `description`, `is_active`, and loaded `permissions`; permission resources contain `id`, `name`, `display_name`, `description`, `is_active`, and `guard_name`. Do not send or expect `role_id` on users.
 
-### 👤 User & RBAC Management
-* `GET|POST /api/v1/users` - User CRUD operations
-* `GET|POST /api/v1/roles` - Role management & permission sync
-* `GET /api/v1/permissions` - Available system permissions
+## Endpoints
 
-### 📰 Core Business Modules
-* `GET|POST /api/v1/news` - News articles management
-* `GET|POST /api/v1/calendar-events` - Task and calendar event tracking
-* `GET /api/v1/activity-logs` - Filterable audit trail log entries
-* `GET /api/v1/notifications` - Database notifications inbox
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/login` | Authenticate; returns user and Sanctum token |
+| `POST` | `/register` | Register a user (`name`, `email`, `password`, `password_confirmation`; optional `phone`, `avatar`) |
+| `POST` | `/logout` | Revoke the current token |
+| `POST` | `/logout-all` | Revoke all tokens for the current user |
+| `GET` | `/me` | Current user and roles |
+| `PATCH` | `/changePassword-password` | Change current user's password |
+| `GET`, `PATCH` | `/profile` | Read or update the current user's profile |
+| `GET`, `POST` | `/users` | List or create users |
+| `GET`, `PUT/PATCH`, `DELETE` | `/users/{user}` | Read, update, or soft-delete a user |
+| `PATCH` | `/users/{user}/activate` | Activate a user |
+| `PATCH` | `/users/{user}/deactivate` | Deactivate a user |
+| `PATCH` | `/users/{user}/change-role` | Assign a role by `roleName` |
+| `GET` | `/users/trashed` | List soft-deleted users |
+| `DELETE` | `/users/{id}/soft-delete` | Soft-delete a user |
+| `POST` | `/users/{id}/restore` | Restore a soft-deleted user |
+| `DELETE` | `/users/{id}/force-delete` | Permanently delete a soft-deleted user |
+| `GET`, `POST` | `/roles` | List or create roles |
+| `GET`, `PUT`, `DELETE` | `/roles/{role}` | Read, update, or delete a role |
+| `GET` | `/roles/{role}/permissions` | List a role's permissions |
+| `POST` | `/roles/{role}/permissions` or `/roles/{role}/permissions/sync` | Replace role permissions |
+| `POST` | `/roles/{role}/permissions/attach` | Attach permissions |
+| `DELETE` | `/roles/{role}/permissions/detach` | Detach permissions |
+| `GET`, `POST` | `/permissions` | List or create permissions |
+| `GET`, `PUT`, `DELETE` | `/permissions/{permission}` | Read, update, or delete a permission |
+| `GET`, `POST` | `/events` | List or create calendar events |
+| `GET`, `PUT/PATCH`, `DELETE` | `/events/{event}` | Read, update, or delete an event |
+| `PATCH` | `/events/{event}/activate` | Activate an event |
+| `PATCH` | `/events/{event}/deactivate` | Deactivate an event |
+| `GET`, `POST` | `/news` | List or create news |
+| `GET`, `PUT/PATCH`, `DELETE` | `/news/{news}` | Read, update, or delete news |
+| `PATCH` | `/news/{news}/toggle-status` | Toggle news status |
+| `PATCH` | `/news/{news}/toggle-breaking` | Toggle breaking-news status |
+| `GET` | `/activity-logs` | Search activity logs |
+| `GET` | `/activity-logs/{activity}` | Read one activity log |
+| `GET` | `/notifications` | Current user's notifications |
+| `GET` | `/notifications/unread` | Current user's unread notifications |
+| `GET` | `/notifications/unread-count` | Count unread notifications |
+| `PATCH` | `/notifications/{id}/read` | Mark one owned notification as read |
+| `PATCH` | `/notifications/read-all` | Mark all current user's notifications as read |
+| `DELETE` | `/notifications/{id}` | Delete one owned notification |
 
----
+These paths are relative to `/api/v1`. The live route table can be inspected with `php artisan route:list --path=api/v1`.
 
-## ⚙️ Environment Setup & Local Installation
+## Filtering and pagination
 
-### Prerequisites
-* **PHP:** ^8.3
-* **Composer:** ^2.0
-* **MySQL:** ^8.0
-* **Redis:** Running locally or via Docker
-* **Docker / WSL2** (Recommended)
+List endpoints accept bounded pagination; `per_page` must be an integer from 1 to 100 where exposed. News supports `search`, `type`, `source_type`, `status`, `is_breaking`, `created_by`, `published_from`, `published_to`, `sort_by`, `sort_order`, `page`, and `per_page`. Sort fields are allow-listed. Calendar events and activity logs also validate their supported filters and sort fields.
 
-### Installation Steps
+Activity logs are scoped to the authenticated user's activity unless that user has the `view_all_activity_logs` permission. Calendar event visibility and cross-owner management similarly require the explicit `view_all_calendar_events` and `manage_all_calendar_events` permissions.
 
-1. **Clone the Repository:**
-   ```bash
-   git clone [https://github.com/YOUR_USERNAME/laravel-react-dashboard-api.git](https://github.com/YOUR_USERNAME/laravel-react-dashboard-api.git)
-   cd laravel-react-dashboard-api
+## Authorization
+
+Policies and Spatie permissions protect the API resources. Relevant permission names include:
+
+- Users: `view_users`, `create_users`, `edit_users`, `delete_users`, `activate_users`, `deactivate_users`
+- Privileged role assignment: `assign_privileged_roles`
+- Roles: `view_roles`, `create_roles`, `edit_roles`, `delete_roles`, `assign_role_permissions`
+- Permissions: `view_permissions`, `create_permissions`, `edit_permissions`, `delete_permissions`
+- News: `view_news`, `view_all_news`, `create_news`, `edit_news`, `delete_news`, `activate_news`, `deactivate_news`
+- Calendar: `view_calendar`, `view_all_calendar_events`, `create_calendar`, `edit_calendar`, `manage_all_calendar_events`, `delete_calendar`, `activate_calendar`, `deactivate_calendar`
+- Activity logs: `view_activity_log`, `view_all_activity_logs`
+
+The server does not trust a role name or user ID supplied by the client as authorization. A role manager can only grant permissions that they already hold. Granting privileged roles is separately protected; a user who can manage users cannot thereby assign themselves or others a privileged role.

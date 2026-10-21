@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -29,15 +31,18 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
         ];
     }
+
+    public function withRole(Role $role): static
+    {
+        return $this->afterCreating(function (User $user) use ($role): void {
+            $user->assignRole($role);
+        });
+    }
+
     public function admin(): static
     {
-        return $this->state(function () {
-            return [
-                'role_id' => \App\Models\Role::factory()
-                    ->admin()
-                    ->create()
-                    ->id,
-            ];
+        return $this->afterCreating(function (User $user): void {
+            $user->syncRoles(Role::factory()->admin()->create());
         });
     }
 

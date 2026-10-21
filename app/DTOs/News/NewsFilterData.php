@@ -3,7 +3,8 @@
 namespace App\DTOs\News;
 
 use App\Http\Requests\News\NewsFilterRequest;
-use DateTime;
+use DateTimeImmutable;
+use DateTimeInterface;
 
 class NewsFilterData
 {
@@ -17,8 +18,8 @@ class NewsFilterData
         public readonly ?bool $status = null,
         public readonly ?bool $isBreaking = null,
         public readonly ?int $createdBy = null,
-        public readonly ?DateTime $publishedFrom = null,
-        public readonly ?DateTime $publishedTo = null,
+        public readonly ?DateTimeInterface $publishedFrom = null,
+        public readonly ?DateTimeInterface $publishedTo = null,
         public readonly ?string $sortBy = null,
         public readonly ?string $sortOrder = null,
         public readonly ?int $perPage = 10,
@@ -29,18 +30,22 @@ class NewsFilterData
     public static function fromRequest(NewsFilterRequest $request): self
     {
         return new self(
-            search: $request['search'] ?? null,
-            type: $request['type'] ?? null,
-            sourceType: $request['source_type'] ?? null,
-            status: $request['status'] ?? null,
-            isBreaking: $request['is_breaking'] ?? null,
-            createdBy: $request['created_by'] ?? null,
-            publishedFrom: $request['published_from'] ?? null,
-            publishedTo: $request['published_to'] ?? null,
-            sortBy: $request['sort_by'] ?? 'published_at',
-            sortOrder: $request['sort_order'] ?? 'desc',
-            perPage: $request['per_page'] ?? 10,
-            page: $request['page'] ?? 1
+            search: $request->input('search'),
+            type: $request->input('type'),
+            sourceType: $request->input('source_type'),
+            status: $request->has('status') ? $request->boolean('status') : null,
+            isBreaking: $request->has('is_breaking') ? $request->boolean('is_breaking') : null,
+            createdBy: $request->filled('created_by') ? $request->integer('created_by') : null,
+            publishedFrom: $request->filled('published_from')
+                ? new DateTimeImmutable($request->input('published_from'))
+                : null,
+            publishedTo: $request->filled('published_to')
+                ? new DateTimeImmutable($request->input('published_to'))
+                : null,
+            sortBy: $request->input('sort_by', 'published_at'),
+            sortOrder: $request->input('sort_order', 'desc'),
+            perPage: $request->integer('per_page', 10),
+            page: $request->integer('page', 1)
         );
     }
 }

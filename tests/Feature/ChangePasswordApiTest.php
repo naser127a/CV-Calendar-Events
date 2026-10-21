@@ -18,8 +18,6 @@ class ChangePasswordApiTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed();
-
         $this->user = User::factory()->create([
             'password' => Hash::make('old-password'),
         ]);

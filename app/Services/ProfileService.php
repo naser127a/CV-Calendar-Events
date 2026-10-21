@@ -11,13 +11,16 @@ class ProfileService
     public function __construct(
         private UpdateProfileAction $updateProfileAction
     ) {}
+
     public function me(User $user): User
     {
-        return $user->load("role");
+        return $user->load('roles.permissions');
     }
 
     public function update(UpdateProfileData $data, User $user)
     {
-        return $this->updateProfileAction->execute($data, $user);
+        return $this->updateProfileAction
+            ->execute($data, $user)
+            ->load('roles.permissions');
     }
 }

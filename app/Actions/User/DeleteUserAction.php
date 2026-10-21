@@ -27,7 +27,7 @@ class DeleteUserAction
             }
         if ($user->hasRole('admin')) {
 
-            $admins = User::whereHas('role', function ($query) {
+            $admins = User::whereHas('roles', function ($query) {
                 $query->where('name', 'admin');
             })->count();
 

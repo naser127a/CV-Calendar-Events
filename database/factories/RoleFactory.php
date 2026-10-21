@@ -14,7 +14,33 @@ class RoleFactory extends Factory
             'display_name' => fake()->words(2, true),
             'description' => fake()->sentence(),
             'is_active' => true,
+            'guard_name' => 'web',
         ];
+    }
+
+    public function admin(): static
+    {
+        return $this->state([
+            'name' => 'admin',
+            'display_name' => 'المدير العام',
+            'description' => 'يمتلك كافة الصلاحيات',
+        ]);
+    }
+
+    public function supervisor(): static
+    {
+        return $this->state([
+            'name' => 'supervisor',
+            'display_name' => 'مشرف',
+        ]);
+    }
+
+    public function user(): static
+    {
+        return $this->state([
+            'name' => 'user',
+            'display_name' => 'مستخدم عادي',
+        ]);
     }
 }
 // namespace Database\Factories;

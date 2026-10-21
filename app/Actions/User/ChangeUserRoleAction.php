@@ -3,6 +3,8 @@
 namespace App\Actions\User;
 
 use App\Models\User;
+use App\Models\Role;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
@@ -18,13 +20,16 @@ class ChangeUserRoleAction
             ]);
         }
 
+        $role = Role::findByName($roleName, 'web');
+        Gate::authorize('assignRole', [User::class, $role]);
+
         if ($user->hasRole($roleName)) {
             throw ValidationException::withMessages([
                 'role' => 'User already has this role.',
             ]);
         }
 
-        $user->syncRoles([$roleName]);
+        $user->syncRoles([$role]);
 
         return $user->fresh();
     }
